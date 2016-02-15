@@ -106,8 +106,19 @@ namespace DBCodeFirst
                 sbTemp.Append("\r\n\t\t///").Append(tempDescription);
                 sbTemp.Append("\r\n\t\t/// </summary>");
                 sbTemp.Append("\r\n\t\t[Display(Name = \"").Append(PublicHelper.GetCamelName(colName)).Append("\")]");
+                if (tempNullAble == "N" || tempNullAble == "NO")
+                {
+                    sbTemp.Append("\r\n\t\t[Required]");
+                }
+                string ColType = DataTypeConvert.ConvertTypeVS2008(dtColumns.Rows[i]);
+                if (ColType == "string")
+                {
+                    sbTemp.Append("\r\n\t\t[StringLength(").Append(tempLength).Append(")]");
+                }
+                //sbTemp.Append("\r\n\t\t[Column(TypeName = \"").Append(ColType).Append("\")]");
+
                 sbTemp.Append("\r\n\t\tpublic ")
-                    .Append(DataTypeConvert.ConvertTypeVS2008(dtColumns.Rows[i]))
+                    .Append(ColType)
                     .Append(" ")
                     .Append(Words.reWriteWord(colName))
                     .Append(" { get; set; }");

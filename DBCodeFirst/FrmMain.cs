@@ -30,7 +30,7 @@ namespace DBCodeFirst
 
         private void FrmMain_Load(object sender, EventArgs e)
         {
-            cbxDataBase.SelectedIndex = 2;
+            cbxDataBase.SelectedIndex = 3;
 
             this.dgvColumns.AutoGenerateColumns = false;
             //this.txtFilterTable.Focus();
@@ -67,7 +67,11 @@ namespace DBCodeFirst
             }
             if (Type == Enumeration.DataBaseType.MSSQL)
             {
-                dbName = new SqlConnection(SqlHelper.connectStr).Database;
+                dbName = new SqlConnection(MSSQLHelper.connectStr).Database;
+            }
+            if (Type == Enumeration.DataBaseType.PostgreSQL)
+            {
+                dbName = new SqlConnection(PgHelper.connectStr).Database;
             }
             else
             {
@@ -138,6 +142,10 @@ namespace DBCodeFirst
             {
                 dtColumns = new MSSQLInfo().getColumnsByTableName(this.dgvTables.Rows[e.RowIndex].Cells["Table_Name"].Value.ToString());
             }
+            else if (cbxDataBase.SelectedIndex == 3)
+            {
+                dtColumns = new PgInfo().getColumnsByTableName(this.dgvTables.Rows[e.RowIndex].Cells["Table_Name"].Value.ToString());
+            }
             else
             {
 
@@ -188,6 +196,11 @@ namespace DBCodeFirst
             CheckAll();
         }
 
+        /// <summary>
+        /// 显示
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
         private void btnShowTables_Click(object sender, EventArgs e)
         {
             DataTable tb = null;
@@ -205,6 +218,10 @@ namespace DBCodeFirst
             else if (type == Enumeration.DataBaseType.MSSQL)
             {
                 tb = new MSSQLInfo().DBTables(txtFilterTable.Text);
+            }
+            else if (type == Enumeration.DataBaseType.PostgreSQL)
+            {
+                tb = new PgInfo().DBTables(txtFilterTable.Text);
             }
             else
             {

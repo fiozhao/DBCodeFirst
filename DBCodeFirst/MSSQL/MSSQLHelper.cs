@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace DBCodeFirst
 {
-    public sealed partial class SqlHelper
+    public sealed partial class MSSQLHelper
     {
         /// <summary>
         /// 批量操作每批次记录数
@@ -22,7 +22,7 @@ namespace DBCodeFirst
 
         //private string connectionString;
 
-        public SqlHelper()
+        public MSSQLHelper()
         {
 
         }
@@ -50,7 +50,7 @@ namespace DBCodeFirst
         {
             DataTable dataTable = new DataTable();
             SqlConnection conn = new SqlConnection();
-            conn.ConnectionString = SqlHelper.connectStr;
+            conn.ConnectionString = MSSQLHelper.connectStr;
             try
             {
                 if (conn.State != ConnectionState.Open)
@@ -82,7 +82,7 @@ namespace DBCodeFirst
         {
             object result = null;
             SqlConnection conn = new SqlConnection();
-            conn.ConnectionString = SqlHelper.connectStr;
+            conn.ConnectionString = MSSQLHelper.connectStr;
             SqlTransaction tran = null;
             try
             {

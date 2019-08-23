@@ -46,14 +46,14 @@
             this.Column4 = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.Camel_Name = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.dgvTables = new System.Windows.Forms.DataGridView();
-            this.cbxDataBase = new System.Windows.Forms.ComboBox();
-            this.label2 = new System.Windows.Forms.Label();
-            this.btnShowTables = new System.Windows.Forms.Button();
             this.ckbCheck = new System.Windows.Forms.DataGridViewCheckBoxColumn();
             this.table_name = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.table_camel_name = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.primay_key = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.comments = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.cbxDataBase = new System.Windows.Forms.ComboBox();
+            this.label2 = new System.Windows.Forms.Label();
+            this.btnShowTables = new System.Windows.Forms.Button();
             this.groupBox6.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.dgvColumns)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.dgvTables)).BeginInit();
@@ -240,13 +240,54 @@
             this.dgvTables.TabIndex = 9;
             this.dgvTables.CellMouseClick += new System.Windows.Forms.DataGridViewCellMouseEventHandler(this.dgvTables_CellMouseClick);
             // 
+            // ckbCheck
+            // 
+            this.ckbCheck.DataPropertyName = "ckbCheck";
+            this.ckbCheck.FillWeight = 60.9137F;
+            this.ckbCheck.HeaderText = "";
+            this.ckbCheck.Name = "ckbCheck";
+            this.ckbCheck.Width = 5;
+            // 
+            // table_name
+            // 
+            this.table_name.DataPropertyName = "Table_Name";
+            this.table_name.FillWeight = 113.0288F;
+            this.table_name.HeaderText = "原始表名";
+            this.table_name.Name = "table_name";
+            this.table_name.ReadOnly = true;
+            this.table_name.Width = 78;
+            // 
+            // table_camel_name
+            // 
+            this.table_camel_name.DataPropertyName = "table_camel_name";
+            this.table_camel_name.HeaderText = "驼峰命名";
+            this.table_camel_name.Name = "table_camel_name";
+            this.table_camel_name.Width = 78;
+            // 
+            // primay_key
+            // 
+            this.primay_key.DataPropertyName = "primay_key";
+            this.primay_key.HeaderText = "有主键";
+            this.primay_key.Name = "primay_key";
+            this.primay_key.Width = 66;
+            // 
+            // comments
+            // 
+            this.comments.DataPropertyName = "comments";
+            this.comments.FillWeight = 113.0288F;
+            this.comments.HeaderText = "说明";
+            this.comments.Name = "comments";
+            this.comments.ReadOnly = true;
+            this.comments.Width = 54;
+            // 
             // cbxDataBase
             // 
             this.cbxDataBase.FormattingEnabled = true;
             this.cbxDataBase.Items.AddRange(new object[] {
             "Oracle",
             "MySQL",
-            "MSSQL"});
+            "MSSQL",
+            "PostgreSQL"});
             this.cbxDataBase.Location = new System.Drawing.Point(88, 17);
             this.cbxDataBase.Name = "cbxDataBase";
             this.cbxDataBase.Size = new System.Drawing.Size(121, 20);
@@ -270,46 +311,6 @@
             this.btnShowTables.Text = "显示";
             this.btnShowTables.UseVisualStyleBackColor = true;
             this.btnShowTables.Click += new System.EventHandler(this.btnShowTables_Click);
-            // 
-            // ckbCheck
-            // 
-            this.ckbCheck.DataPropertyName = "ckbCheck";
-            this.ckbCheck.FillWeight = 60.9137F;
-            this.ckbCheck.HeaderText = "";
-            this.ckbCheck.Name = "ckbCheck";
-            this.ckbCheck.Width = 5;
-            // 
-            // Table_Name
-            // 
-            this.table_name.DataPropertyName = "Table_Name";
-            this.table_name.FillWeight = 113.0288F;
-            this.table_name.HeaderText = "原始表名";
-            this.table_name.Name = "table_name";
-            this.table_name.ReadOnly = true;
-            this.table_name.Width = 78;
-            // 
-            // Table_Camel_Name
-            // 
-            this.table_camel_name.DataPropertyName = "table_camel_name";
-            this.table_camel_name.HeaderText = "驼峰命名";
-            this.table_camel_name.Name = "table_camel_name";
-            this.table_camel_name.Width = 78;
-            // 
-            // primay_key
-            // 
-            this.primay_key.DataPropertyName = "primay_key";
-            this.primay_key.HeaderText = "有主键";
-            this.primay_key.Name = "primay_key";
-            this.primay_key.Width = 66;
-            // 
-            // comments
-            // 
-            this.comments.DataPropertyName = "comments";
-            this.comments.FillWeight = 113.0288F;
-            this.comments.HeaderText = "说明";
-            this.comments.Name = "comments";
-            this.comments.ReadOnly = true;
-            this.comments.Width = 54;
             // 
             // FrmMain
             // 

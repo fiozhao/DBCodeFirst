@@ -13,7 +13,8 @@ namespace DBCodeFirst
         {
             Oracle = 0,
             MySQL = 1,
-            MSSQL = 2
+            MSSQL = 2,
+            PostgreSQL = 3
         }
 
         enum Days { Sat, Sun, Mon, Tue, Wed, Thu, Fri };

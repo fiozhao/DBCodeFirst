@@ -545,7 +545,12 @@ namespace DBCodeFirst
             {
                 dtColumns = new MSSQLInfo().getColumnsByTableName(dbTableName);
             }
-            else {
+            else if (DBType == Enumeration.DataBaseType.PostgreSQL)
+            {
+                dtColumns = new PgInfo().getColumnsByTableName(dbTableName);
+            }
+            else
+            {
 
             }
 
@@ -567,7 +572,12 @@ namespace DBCodeFirst
             {
                 keyList = new MSSQLInfo().GetPrimayKeys(dbTableName);
             }
-            else {
+            else if (DBType == Enumeration.DataBaseType.PostgreSQL)
+            {
+                keyList = new PgInfo().GetPrimayKeys(dbTableName);
+            }
+            else
+            {
 
             }
 
@@ -614,6 +624,10 @@ namespace DBCodeFirst
             else if (DBType == Enumeration.DataBaseType.MSSQL)
             {
                 comment = new MSSQLInfo().TableComments(dbTableName);
+            }
+            else if (DBType == Enumeration.DataBaseType.PostgreSQL)
+            {
+                comment = new PgInfo().TableComments(dbTableName);
             }
             else {
 

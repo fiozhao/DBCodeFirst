@@ -10,7 +10,7 @@ namespace DBCodeFirst
 {
     public class MSSQLInfo
     {
-        SqlConnection conn = new SqlConnection(SqlHelper.connectStr);
+        SqlConnection conn = new SqlConnection(MSSQLHelper.connectStr);
 
         /// <summary>
         /// 数据库所有表名
@@ -30,7 +30,7 @@ namespace DBCodeFirst
             {
                 strSql = string.Format(strSql, "");
             }
-            DataTable dt = SqlHelper.GetDataTable(strSql);
+            DataTable dt = MSSQLHelper.GetDataTable(strSql);
             for (int i = 0; i < dt.Rows.Count; i++)
             {
                 string TableName = dt.Rows[i]["table_name"].ToString();
@@ -80,7 +80,7 @@ namespace DBCodeFirst
                 + "where d.[name] = '" + tableName + "' "
                 + "order by a.id,a.colorder ";
 
-            DataTable dtColumns = SqlHelper.GetDataTable(SQL);
+            DataTable dtColumns = MSSQLHelper.GetDataTable(SQL);
             return dtColumns;
         }
 
@@ -103,7 +103,7 @@ namespace DBCodeFirst
                 + "on a.constraint_name = b.constraint_name "
                 + "where a.constraint_type = 'PRIMARY KEY' and a.table_name = '"+ tableName + "' ";
 
-            DataTable dtPrimaryKeys = SqlHelper.GetDataTable(sqlstr);
+            DataTable dtPrimaryKeys = MSSQLHelper.GetDataTable(sqlstr);
             List<string> primayKeys = new List<string>();
             foreach (DataRow item in dtPrimaryKeys.Rows)
             {
@@ -130,7 +130,7 @@ namespace DBCodeFirst
                  + "left join sys.extended_properties f on d.id = f.major_id and f.minor_id = 0 "
                  + "where d.name = '" + tableName + "' and d.xtype = 'U' and d.name <> 'dtproperties' ";
 
-            string comments = SqlHelper.ExecuteScalar(strSql) as string;
+            string comments = MSSQLHelper.ExecuteScalar(strSql) as string;
             return comments == null ? "" : comments;
         }
         
@@ -159,7 +159,7 @@ namespace DBCodeFirst
                        + "where d.[name] = '" + tableName + "' and a.isnullable = 0 "
                        + "order by a.id,a.colorder ";
 
-            DataTable dtPrimaryKeys1 = SqlHelper.GetDataTable(sqlstr);
+            DataTable dtPrimaryKeys1 = MSSQLHelper.GetDataTable(sqlstr);
             foreach (DataRow item in dtPrimaryKeys1.Rows)
             {
                 string columnName = item["column_name"].ToString();

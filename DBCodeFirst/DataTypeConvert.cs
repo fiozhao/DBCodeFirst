@@ -54,7 +54,7 @@ namespace DBCodeFirst
                 || type == "LONGTEXT" || type == "CHAR" || type == "CLOB"
                 || type == "LONG" || type == "NCHAR" || type == "NCLOB"
                 || type == "NVARCHAR2" || type == "ROWID" || type == "VARCHAR2"
-                || type == "NVARCHAR" || type == "VARCHAR")
+                || type == "NVARCHAR" || type == "VARCHAR" || type == "CHARACTER VARYING")
             {
                 //ret = tempNullAble == "N" ? "string": "string?";类型“string”必须是不可以为 null 值的类型，才能用作泛型类型或方法“Nullable<T>”中的参数“T”
                 ret = "string";
@@ -94,6 +94,10 @@ namespace DBCodeFirst
                     ret = tempNullAble == "N" ? "byte" : "byte?";
                 }
             }
+            else if (type == "BOOLEAN")
+            {
+                    ret = tempNullAble == "N" ? "bool" : "bool?";
+            }                
             else if (type == "INT" || type == "IPADDRESSTYPE" || type == "MEDIUMINT")
             {
                 ret = tempNullAble == "N" ? "int" : "int?";
@@ -114,7 +118,7 @@ namespace DBCodeFirst
             {
                 ret = tempNullAble == "N" ? "DateTime" : "DateTime?";
             }
-            else if (type == "DATETIME")
+            else if (type == "DATETIME" || type == "TIMESTAMP WITHOUT TIME ZONE")
             {
                 ret = tempNullAble == "N" ? "System.DateTime" : "System.DateTime?";
             }

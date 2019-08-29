@@ -31,14 +31,16 @@ namespace DBCodeFirst
                 string TableName = dt.Rows[i]["table_name"].ToString();
                 dt.Rows[i]["table_camel_name"] = PublicHelper.GetCamelName(TableName);
 
-                List<string> keyList = Generate.SelectGetPrimayKeys(0, TableName); //0 Oracle
+                List<string> keyList = Generate.GetPrimayKeys(0, TableName); //0 Oracle
                 if (keyList.Count == 0)
                 {
-                    dt.Rows[i]["primay_key"] = "N";
+                    //dt.Rows[i]["primay_key"] = "N";
+                    dt.Rows[i]["primay_key"] = "";
                 }
                 else
                 {
-                    dt.Rows[i]["primay_key"] = "Y";
+                    //dt.Rows[i]["primay_key"] = "Y";
+                    dt.Rows[i]["primay_key"] = keyList[0].ToString();
                 }
             }
 

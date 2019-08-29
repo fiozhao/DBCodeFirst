@@ -23,11 +23,11 @@ namespace DBCodeFirst
         /// <returns></returns>
         public DataTable DBTables(string sFilterTable)
         {
-
-
-            string strSql = "select relname as table_name, cast(obj_description(relfilenode,'pg_class') as varchar) as comments ,'' table_camel_name, '' primay_key"
-                + " from pg_class c where relname in (select tablename from pg_tables where schemaname = '" + dbSchema + "'"
-                + " and position('_2' in tablename)= 0) ";
+            string strSql = "select relname as table_name" 
+                + ", cast(obj_description(relfilenode, 'pg_class') as varchar) as comments ,"
+                + "'' table_camel_name, '' primay_key"
+                + " from pg_class c where relnamespace IN(SELECT oid FROM pg_namespace"
+                + " WHERE nspname = '" + dbSchema + "') and reltype > 0 and relname not like '%_copy%' order by table_name";
             if (sFilterTable.Trim() != string.Empty)
             {
                 strSql = string.Format(strSql, "and LOWER(relname) like '" + sFilterTable.Trim().ToLower() + "%'");
@@ -44,14 +44,16 @@ namespace DBCodeFirst
                 string TableName = dt.Rows[i]["table_name"].ToString();
                 dt.Rows[i]["table_camel_name"] = PublicHelper.GetCamelName(TableName);
 
-                List<string> keyList = Generate.SelectGetPrimayKeys(Enumeration.DataBaseType.PostgreSQL, TableName); //1 PostgreSQL
+                List<string> keyList = Generate.GetPrimayKeys(Enumeration.DataBaseType.PostgreSQL, TableName); //1 PostgreSQL
                 if (keyList.Count == 0)
                 {
-                    dt.Rows[i]["primay_key"] = "N";
+                    //dt.Rows[i]["primay_key"] = "N";
+                    dt.Rows[i]["primay_key"] = "";
                 }
                 else
                 {
-                    dt.Rows[i]["primay_key"] = "Y";
+                    //dt.Rows[i]["primay_key"] = "Y";
+                    dt.Rows[i]["primay_key"] = keyList[0].ToString();
                 }
             }
 
@@ -65,12 +67,6 @@ namespace DBCodeFirst
         /// <returns></returns>
         public DataTable getColumnsByTableName(string tableName)
         {
-            //string sqlstr2 = "SELECT COLUMN_NAME,DATA_TYPE,CHARACTER_MAXIMUM_LENGTH as DATA_LENGTH,"
-            //    + "NUMERIC_PRECISION as DATA_PRECISION,NUMERIC_SCALE as DATA_SCALE,"
-            //    + "IS_NULLABLE as NULLABLE,COLUMN_DEFAULT as DATA_DEFAULT,COLUMN_COMMENT as COMMENTS,'' Camel_Name "
-            //    + "from information_schema.columns "
-            //    + "where table_schema='" + dbSchema + "' and table_catalog = '" + conn.Database  + "' and table_name='" + tableName + "'";
-
             string sqlstr = "SELECT t1.COLUMN_NAME,t1.DATA_TYPE,t1.CHARACTER_MAXIMUM_LENGTH as DATA_LENGTH,"
                 + " t1.NUMERIC_PRECISION as DATA_PRECISION,t1.NUMERIC_SCALE as DATA_SCALE,"
                 + " t1.IS_NULLABLE as NULLABLE,t1.COLUMN_DEFAULT as DATA_DEFAULT,t2.description as COMMENTS,'' Camel_Name"
@@ -78,7 +74,7 @@ namespace DBCodeFirst
                 + " left join"
                 + " (select a.attnum, a.attname, concat_ws('',t.typname,SUBSTRING(format_type(a.atttypid, a.atttypmod) from '\\(.*\\)')) as type,d.description"
                 + "   from pg_class c, pg_attribute a,	pg_type t, pg_description d"
-                + " where c.relname = '" + tableName + "' and a.attnum > 0 and a.attrelid = c.oid and a.atttypid = t.oid and d.objoid = a.attrelid and d.objsubid = a.attnum"
+                + " where c.relname = '" + tableName + "' and relnamespace IN ( SELECT oid FROM pg_namespace WHERE nspname='" + dbSchema + "') and a.attnum > 0 and a.attrelid = c.oid and a.atttypid = t.oid and d.objoid = a.attrelid and d.objsubid = a.attnum"
                 + " ) as t2 on t1.COLUMN_NAME = t2.attname"
                 + " where t1.table_schema = '" + dbSchema + "' and t1.table_name = '" + tableName + "' AND t1.table_catalog = '" + conn.Database + "'";
 
@@ -87,7 +83,8 @@ namespace DBCodeFirst
             for (int i = 0; i < dt.Rows.Count; i++)
             {
                 string columnName = dt.Rows[i]["NULLABLE"].ToString();
-                columnName = columnName == tableName ? columnName + "1" : columnName;//如果字段名和表明相同,就在字段名后面加上字符"1"
+                //如果字段名和表名相同,就在字段名后面加上字符"1"
+                columnName = columnName == tableName ? columnName + "1" : columnName;
 
                 if (columnName == "YES")
                 {
@@ -109,12 +106,6 @@ namespace DBCodeFirst
         /// <returns></returns>
         public List<string> GetPrimayKeys(string tableName)
         {
-            //string sqlstr =                 
-            //    "SELECT t.TABLE_NAME, t.CONSTRAINT_TYPE, c.COLUMN_NAME, c.ORDINAL_POSITION FROM "
-            //    + "INFORMATION_SCHEMA.TABLE_CONSTRAINTS AS t, INFORMATION_SCHEMA.KEY_COLUMN_USAGE AS c "
-            //    + "WHERE t.TABLE_NAME = c.TABLE_NAME "
-            //    + "AND t.CONSTRAINT_TYPE = 'PRIMARY KEY' AND t.TABLE_SCHEMA = '" + conn.Database
-            //    + "' AND c.TABLE_SCHEMA = '" + conn.Database + "' AND t.TABLE_NAME = '" + tableName + "'";
             string sqlstr = "SELECT t.TABLE_NAME, t.CONSTRAINT_TYPE, c.COLUMN_NAME, c.ORDINAL_POSITION"
                 + " FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS AS t, INFORMATION_SCHEMA.KEY_COLUMN_USAGE AS c "
                 + "WHERE t.TABLE_NAME = c.TABLE_NAME AND t.CONSTRAINT_TYPE = 'PRIMARY KEY' AND c.TABLE_SCHEMA = '" + dbSchema + "' AND t.TABLE_NAME = '" + tableName
@@ -125,7 +116,8 @@ namespace DBCodeFirst
             foreach (DataRow item in dtPrimaryKeys.Rows)
             {
                 string columnName = item["column_name"].ToString();
-                columnName = columnName == tableName ? columnName + "1" : columnName;//如果字段名和表明相同,就在字段名后面加上字符"1"
+                //如果字段名和表名相同,就在字段名后面加上字符"1"
+                columnName = columnName == tableName ? columnName + "1" : columnName;
 
                 if (!primayKeys.Contains(columnName))
                 {

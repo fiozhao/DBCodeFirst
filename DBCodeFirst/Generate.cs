@@ -14,9 +14,11 @@ namespace DBCodeFirst
 {
     public class Generate
     {
+        static NameValueCollection appSettings = System.Configuration.ConfigurationManager.AppSettings;
         public string gGeneFile = Application.StartupPath + "\\GeneFile\\";
         public string correspondingXmlPath = Application.StartupPath + "\\Xml\\Corresponding.xml";
-        public string Schema;
+        public String dbSchema = appSettings["dbSchema"];
+        //public string Schema;
         public string NameSpaceModel;
         public string NameSapceMaping;
         //OracleInfo info = new OracleInfo();
@@ -29,18 +31,21 @@ namespace DBCodeFirst
         {
             NameValueCollection appSettings = System.Configuration.ConfigurationManager.AppSettings;
             if (dbtype == Enumeration.DataBaseType.Oracle)
-            {                
+            {
                 //Schema = appSettings["Schema"];
-                Schema = new OracleConnection(OracleHelper.connectStr).Database;
+                dbSchema = new OracleConnection(OracleHelper.connectStr).Database;
             }
             if (dbtype == Enumeration.DataBaseType.MySQL)
             {
-                Schema = new MySqlConnection(MySqlHelper.connectStr).Database;
+                dbSchema = new MySqlConnection(MySqlHelper.connectStr).Database;
             }
             if (dbtype == Enumeration.DataBaseType.MSSQL)
             {
-                Schema = "SCHEMA";
+                dbSchema = "SCHEMA";
             }
+            //if (dbtype == Enumeration.DataBaseType.PostgreSQL)
+            //{
+            //}
             NameSpaceModel = appSettings["NameSpaceModel"];
             NameSapceMaping = appSettings["NameSapceMaping"];
 
@@ -52,31 +57,32 @@ namespace DBCodeFirst
         /// </summary>
         /// <param name="dbTableName">数据库中的表名称</param>
         /// <param name="tableCamelName">参与生成的表名称(可能是数据表名称也可能是表名称的骆驼表示法</param>
-        public void GenerateModel(Enumeration.DataBaseType DBType, string dbTableName, string tableCamelName)
-        {
+        public void GenerateModel(Enumeration.DataBaseType DBType, ModelTable mt)
+        {            
             StringBuilder sbTemp = new StringBuilder();
-            DataTable dtColumns = SelectColumnsByTableName(DBType, dbTableName);
-            
+            DataTable dtColumns = SelectColumnsByTableName(DBType, mt.Table_Name);
+
             string colName = string.Empty;
 
             #region 生成命名空间和类
             sbTemp.Append("using System;"); //引入命名空间
             sbTemp.Append("\r\n");
-            sbTemp.Append("using System.ComponentModel;").Append("\r\n");
-            sbTemp.Append("using System.Collections.Generic;\r\n");
-            sbTemp.Append("using System.ComponentModel.DataAnnotations;");
+            sbTemp.Append("\r\nusing System.ComponentModel;");
+            sbTemp.Append("\r\nusing System.Collections.Generic;");
+            sbTemp.Append("\r\nusing System.ComponentModel.DataAnnotations;");
+            sbTemp.Append("\r\nusing System.ComponentModel.DataAnnotations.Schema;");
             sbTemp.Append("\r\n");
             sbTemp.Append("\r\n").Append("namespace ").Append(NameSpaceModel);    //命名空间
             sbTemp.Append("\r\n").Append("{");
             sbTemp.Append("\r\n").Append("\t/// <summary>");
-            sbTemp.Append("\r\n").Append("\t///").Append(SelectTableComments(DBType, dbTableName)
+            sbTemp.Append("\r\n").Append("\t///").Append(GetTableComments(DBType, mt.Table_Name)
                 .Replace("\r\n", " ")
                 .Replace("\n", " "));
             sbTemp.Append("\r\n").Append("\t/// </summary>");
             sbTemp.Append("\r\n").Append("\t[Serializable]");
-
+            sbTemp.Append("\r\n").Append("\t[Table(\"" + mt.Table_Name +"\")]\r\n");
             sbTemp.Append("\r\n").Append("\tpublic partial class ")
-                .Append(Words.ToSingular(Words.reWriteWord(dbTableName)));
+                .Append(Words.ToSingular(Words.reWriteWord(mt.TabCamelName)));
             sbTemp.Append("\r\n").Append("\t{");    //类
             #endregion
 
@@ -85,7 +91,7 @@ namespace DBCodeFirst
             {
                 //string tempTableName = dtColumns.Rows[i]["TABLE_NAME"].ToString();
                 string tempColumnName = dtColumns.Rows[i]["COLUMN_NAME"].ToString();
-                tempColumnName = tempColumnName == dbTableName ? tempColumnName + "1" : tempColumnName;//如果字段名和表明相同,就在字段名后面加上字符"1"
+                tempColumnName = tempColumnName == mt.Table_Name ? tempColumnName + "1" : tempColumnName;//如果字段名和表明相同,就在字段名后面加上字符"1"
                 colName = tempColumnName;
 
                 string tempType = dtColumns.Rows[i]["DATA_TYPE"].ToString();
@@ -113,9 +119,30 @@ namespace DBCodeFirst
                 string ColType = DataTypeConvert.ConvertTypeVS2008(dtColumns.Rows[i]);
                 if (ColType == "string")
                 {
-                    sbTemp.Append("\r\n\t\t[StringLength(").Append(tempLength).Append(")]");
+                    if (tempLength == "")
+                    {
+                        if (tempType == "text" || tempType == "character varying")
+                        {
+                            sbTemp.Append("\r\n\t\t[StringLength(").Append("8000").Append(")]");
+                        }
+                        else
+                        {
+                            MessageBox.Show("提示！", "未知类型：" + tempType, MessageBoxButtons.OK,
+         MessageBoxIcon.Warning, MessageBoxDefaultButton.Button1);                            
+                        }
+                    }
+                    else
+                    {
+                        sbTemp.Append("\r\n\t\t[StringLength(").Append(tempLength).Append(")]");
+                    }
                 }
                 //sbTemp.Append("\r\n\t\t[Column(TypeName = \"").Append(ColType).Append("\")]");
+
+                //是否主键
+                if (mt.PrimayKey.Equals(colName))
+                {
+                    sbTemp.Append("\r\n\t\t[Key] ");
+                }
 
                 sbTemp.Append("\r\n\t\tpublic ")
                     .Append(ColType)
@@ -129,7 +156,7 @@ namespace DBCodeFirst
             #endregion
 
             // 生成cs文件
-            generateFile("Models", Words.ToSingular(dbTableName), sbTemp);
+            generateFile("Models", Words.ToSingular(mt.TabCamelName), sbTemp);
         }
 
 
@@ -137,11 +164,12 @@ namespace DBCodeFirst
         /// 生成Mapping
         /// </summary>
         /// <param name="dbTableName">数据库中的表名称</param>
-        public void GenerateMapping(Enumeration.DataBaseType DBType, string dbTableName)
+        public void GenerateMapping(Enumeration.DataBaseType DBType, ModelTable mt)
         {
+            String dbTableName = mt.Table_Name;
             StringBuilder sbTemp = new StringBuilder();
             DataTable dtColumns = SelectColumnsByTableName(DBType, dbTableName);
-            
+
             string colName = string.Empty;
 
             #region 生成命名空间和类
@@ -177,14 +205,14 @@ namespace DBCodeFirst
             #region 主键
             sbTemp.Append("\t\t\t// Primary Key");
             sbTemp.Append("\r\n");
-            List<string> keyList = SelectGetPrimayKeys(DBType, dbTableName);
+            List<string> keyList = GetPrimayKeys(DBType, dbTableName);
 
             List<string> keyList2 = keyList;
 
 
             if (keyList.Count == 0)
             {
-                keyList = SelectGetNotNullColumns(DBType, dbTableName);
+                keyList = GetNotNullColumns(DBType, dbTableName);
                 sbTemp.Append("\t\t\t//缺少主键!");
                 //MessageBox.Show(tableName + "缺少主键!");
                 //return;
@@ -231,7 +259,7 @@ namespace DBCodeFirst
 
                 if (tempType == "MEDIUMTEXT" || tempType == "TEXT" || tempType == "VARCHAR" //MySQL
                         || tempType == "CHAR" || tempType == "CLOB" || tempType == "LONG"   //Oracle
-                        || tempType == "NCHAR" || tempType == "NCLOB" || tempType == "NVARCHAR2" 
+                        || tempType == "NCHAR" || tempType == "NCLOB" || tempType == "NVARCHAR2"
                         || tempType == "ROWID" || tempType == "VARCHAR2")
                 {
                     if (tempType == "CHAR" || tempType == "NCHAR")
@@ -261,7 +289,7 @@ namespace DBCodeFirst
             sbTemp.Append("\t\t\t// Table & Column Mappings");
             sbTemp.Append("\r\n");
             sbTemp.Append("\t\t\tthis.ToTable(\"")
-                .Append(Words.reWriteWord(dbTableName)).Append("\", \"" + Schema + "\");");
+                .Append(Words.reWriteWord(dbTableName)).Append("\", \"" + dbSchema + "\");");
 
             for (int i = 0; i < dtColumns.Rows.Count; i++)
             {
@@ -285,94 +313,146 @@ namespace DBCodeFirst
             generateFile("Models\\Mapping", Words.ToSingular(dbTableName) + "Map", sbTemp);
         }
 
-
-        public void GenerateContext(List<ModelTable> pTables, string DBName)
+        /// <summary>
+        /// 生成dbContext
+        /// </summary>
+        /// <param name="pTables"></param>
+        /// <param name="DBName"></param>
+        public void GenerateDbContext(List<ModelTable> pTables, string DBName)
         {
             StringBuilder sbTemp = new StringBuilder();
-
-            sbTemp.Append("using System.Data.Common;\r\n");
-            sbTemp.Append("using System.Data.Entity;\r\n");
-            sbTemp.Append("using System.Data.Entity.Core.Objects;\r\n");
+            sbTemp.Append("using Microsoft.EntityFrameworkCore;\r\n");
+            sbTemp.Append("using SysConfig;\r\n");
+            //sbTemp.Append("using System.Data.Common;\r\n");
+            //sbTemp.Append("using System.Data.Entity;\r\n");
+            //sbTemp.Append("using System.Data.Entity.Core.Objects;\r\n");
             //sbTemp.Append("using System.Data.Entity.Infrastructure;\r\n");
-            sbTemp.Append("using System.Data.Entity.Infrastructure.Interception;\r\n");
-            sbTemp.Append("using "+ NameSpaceModel + ".Mapping;\r\n");
+            //sbTemp.Append("using System.Data.Entity.Infrastructure.Interception;\r\n");
+            
+            //sbTemp.Append("using " + NameSpaceModel + ".Mapping;\r\n");
             sbTemp.Append("\r\n");
             sbTemp.Append("namespace ").Append(NameSpaceModel).Append("\r\n");
             sbTemp.Append("{\r\n");
             //sbTemp.Append("\t[DbConfigurationType(typeof(MySql.Data.Entity.MySqlEFConfiguration))]\r\n");
 
-            sbTemp.Append("\tpublic partial class " + DBName + "Context : DbContext\r\n");
+            //sbTemp.Append("\tpublic partial class " + DBName + "Context : DbContext\r\n");
+            sbTemp.Append("\tpublic partial class " + "dbContext : DbContext\r\n");
             sbTemp.Append("\t{\r\n");
             sbTemp.Append("\t\t#region 构造函数\r\n");
 
-            sbTemp.Append("\t\tstatic " + DBName + "Context()\r\n");
+            //sbTemp.Append("\t\tstatic " + DBName + "Context()\r\n");
+            sbTemp.Append("\t\tpublic " + "dbContext()\r\n");
             sbTemp.Append("\t\t{\r\n");
-            sbTemp.Append("\t\t\tDatabase.SetInitializer<" + DBName + "Context>(null);\r\n");
-            sbTemp.Append("#if DEBUG\r\n");
-            sbTemp.Append("\t\t\tDbInterception.Add(new EFIntercepterLogging());\r\n");
-            sbTemp.Append("#endif\r\n");
+            //sbTemp.Append("\t\t\tDatabase.SetInitializer<" + DBName + "Context>(null);\r\n");
+            //sbTemp.Append("#if DEBUG\r\n");
+            //sbTemp.Append("\t\t\tDbInterception.Add(new EFIntercepterLogging());\r\n");
+            //sbTemp.Append("#endif\r\n");
             sbTemp.Append("\t\t}\r\n");
             sbTemp.Append("\r\n");
-            sbTemp.Append("\t\tpublic " + DBName + "Context() : base(\"Name=" + DBName + "Context\")\r\n");
+
+            sbTemp.Append("\t\tpublic dbContext(DbContextOptions<dbContext> options): base(options)\r\n");
             sbTemp.Append("\t\t{\r\n");
             sbTemp.Append("\t\t}\r\n");
-            sbTemp.Append("\r\n");
-            sbTemp.Append("\t\tpublic " + DBName + "Context(ObjectContext objectContext, bool dbContextOwnsObjectContext)\r\n");
-            sbTemp.Append("\t\t: base(objectContext, dbContextOwnsObjectContext)\r\n");
-            sbTemp.Append("\t\t{\r\n");
-            sbTemp.Append("\t\t}\r\n");
-            sbTemp.Append("\r\n");
-            sbTemp.Append("\t\tpublic " + DBName + "Context(string nameOrConnectionString)\r\n");
-            sbTemp.Append("\t\t: base(nameOrConnectionString)\r\n");
-            sbTemp.Append("\t\t{\r\n");
-            sbTemp.Append("\t\t}\r\n");
-            sbTemp.Append("\r\n");
-            sbTemp.Append("\t\tpublic " + DBName + "Context(DbConnection dbc, bool b) : base(dbc, b)\r\n");
-            sbTemp.Append("\t\t{\r\n");
-            sbTemp.Append("\t\t}\r\n");
+
+
+            //sbTemp.Append("\t\tpublic " + DBName + "Context() : base(\"Name=" + DBName + "Context\")\r\n");
+            //sbTemp.Append("\t\t{\r\n");
+            //sbTemp.Append("\t\t}\r\n");
+            //sbTemp.Append("\r\n");
+            //sbTemp.Append("\t\tpublic " + DBName + "Context(ObjectContext objectContext, bool dbContextOwnsObjectContext)\r\n");
+            //sbTemp.Append("\t\t: base(objectContext, dbContextOwnsObjectContext)\r\n");
+            //sbTemp.Append("\t\t{\r\n");
+            //sbTemp.Append("\t\t}\r\n");
+            //sbTemp.Append("\r\n");
+            //sbTemp.Append("\t\tpublic " + DBName + "Context(string nameOrConnectionString)\r\n");
+            //sbTemp.Append("\t\t: base(nameOrConnectionString)\r\n");
+            //sbTemp.Append("\t\t{\r\n");
+            //sbTemp.Append("\t\t}\r\n");
+            //sbTemp.Append("\r\n");
+            //sbTemp.Append("\t\tpublic " + DBName + "Context(DbConnection dbc, bool b) : base(dbc, b)\r\n");
+            //sbTemp.Append("\t\t{\r\n");
+            //sbTemp.Append("\t\t}\r\n");
             sbTemp.Append("\r\n");
             sbTemp.Append("\t\t#endregion\r\n");
-            sbTemp.Append("\r\n");
             sbTemp.Append("\t\t#region DbSet\r\n");
 
             foreach (ModelTable item in pTables)
             {
-                if (item.PrimayKey == "Y")
+                //if (item.PrimayKey == "Y")
+                if (item.PrimayKey != "")
                 {
-                    sbTemp.Append("\t\tpublic DbSet<" + Words.ToSingular(item.Table_Name) + "> " + Words.ToPlural(item.Table_Name) + " { get; set; }\r\n");
+                    sbTemp.Append("\t\tpublic DbSet<" + Words.ToSingular(item.TabCamelName) + "> " + Words.ToPlural(item.TabCamelName) + " { get; set; }\r\n");
                 }
-                if (item.PrimayKey == "N")
+                //if (item.PrimayKey == "N")
+                if (item.PrimayKey == "")
                 {
-                    sbTemp.Append("\t\t//无主键public DbSet<" + Words.ToSingular(item.Table_Name) + "> " + Words.ToPlural(item.Table_Name) + " { get; set; }\r\n");
+                    sbTemp.Append("\t\t//无主键public DbSet<" + Words.ToSingular(item.TabCamelName) + "> " + Words.ToPlural(item.TabCamelName) + " { get; set; }\r\n");
                 }
             }
 
             sbTemp.Append("\t\t#endregion\r\n");
             sbTemp.Append("\r\n");
 
-            sbTemp.Append("\t\tprotected override void OnModelCreating(DbModelBuilder modelBuilder)\r\n");
+            sbTemp.Append("\t\tprotected override void OnModelCreating(ModelBuilder modelBuilder)\r\n");
             sbTemp.Append("\t\t{\r\n");
-            foreach (ModelTable item in pTables)
-            {
-                if (item.PrimayKey == "Y")
-                {
-                    sbTemp.Append("\t\t\tmodelBuilder.Configurations.Add(new " + Words.ToSingular(item.Table_Name) + "Map());\r\n");
-                }
-                if (item.PrimayKey == "N")
-                {
-                    sbTemp.Append("\t\t\t//无主键modelBuilder.Configurations.Add(new " + Words.ToSingular(item.Table_Name) + "Map());\r\n");
-                }
+            sbTemp.Append("\t\tbase.OnModelCreating(modelBuilder);\r\n");
+            sbTemp.Append("\t\t//         Database.SetInitializer<agescommContext> (null);\r\n");
+            sbTemp.Append("\t\t////不使用复数\r\n");
+            sbTemp.Append("\t\t//modelBuilder.Conventions.Remove<System.Data.Entity.ModelConfiguration.Conventions.PluralizingTableNameConvention>();\r\n");
 
-            }
+            //foreach (ModelTable item in pTables)
+            //{
+            //    //if (item.PrimayKey == "Y")
+            //    if (item.PrimayKey != "")
+            //    {
+            //        sbTemp.Append("\t\t\tmodelBuilder.Configurations.Add(new " + Words.ToSingular(item.Table_Name) + "Map());\r\n");
+            //    }
+            //    //if (item.PrimayKey == "N")
+            //    if (item.PrimayKey == "")
+            //    {
+            //        sbTemp.Append("\t\t\t//无主键modelBuilder.Configurations.Add(new " + Words.ToSingular(item.Table_Name) + "Map());\r\n");
+            //    }
+            //}
             sbTemp.Append("\t\t}\r\n");
 
-            sbTemp.Append("\t}\r\n");
+
+            sbTemp.Append("\t\tprotected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)\r\n");
+            sbTemp.Append("\t\t{\r\n");
+            sbTemp.Append("\t\tbase.OnConfiguring(optionsBuilder);\r\n");
+
+            sbTemp.Append("\t\tstring connStr = ConfigurationManager.AppSettings[\"dbContext\"];\r\n");
+            sbTemp.Append("\t\tstring dbType = ConfigurationManager.AppSettings[\"dbType\"].ToUpper();\r\n");
+
+            //connStr = "Server=192.168.0.170;Port=3307;User Id=agescomm;Password=agescomm;Database=agescomm";
+            //Console.WriteLine(connStr);
+            sbTemp.Append("\t\tif (dbType == \"POSTGRESQL\")\r\n");
+            sbTemp.Append("\t\t{\r\n");
+            sbTemp.Append("\t\t\toptionsBuilder.UseNpgsql(connStr);\r\n");
+            sbTemp.Append("\t\t}\r\n");
+            sbTemp.Append("\t\tif (dbType == \"MYSQL\")\r\n");
+            sbTemp.Append("\t\t{\r\n");
+            sbTemp.Append("\t\t\toptionsBuilder.UseMySQL(connStr);\r\n");
+            sbTemp.Append("\t\t}\r\n");
+
+            //optionsBuilder.UseMyCat("server=192.168.0.129;database=blog;uid=test;pwd=test") // MyCAT连接字符串
+            // .UseDataNode("192.168.0.129", "blog_1", "root", "123456") // 数据节点连接信息
+            // .UseDataNode("192.168.0.129", "blog_2", "root", "123456")
+            sbTemp.Append("\t\t}\r\n");
+
+
+
+        sbTemp.Append("\t}\r\n");
             sbTemp.Append("}\r\n");
 
-            generateFile("Models", DBName + "Context", sbTemp);
+            //generateFile("Models", DBName + "Context", sbTemp);
+            generateFile("Models", "dbContext", sbTemp);
 
         }
 
+        /// <summary>
+        /// 生成EmodelEntities
+        /// </summary>
+        /// <param name="pTables"></param>
         public void GenerateModelEntities(List<ModelTable> pTables)
         {
             StringBuilder sbTemp = new StringBuilder();
@@ -479,6 +559,240 @@ namespace DBCodeFirst
         }
 
 
+        /// <summary>
+        /// 生成DAL
+        /// </summary>
+        /// <param name="dbTableName">数据库中的表名称</param>
+        /// <param name="tableCamelName">参与生成的表名称(可能是数据表名称也可能是表名称的骆驼表示法</param>
+        public void GenerateDal(Enumeration.DataBaseType DBType, ModelTable mt)
+        {
+            StringBuilder sbTemp = new StringBuilder();
+            DataTable dtColumns = SelectColumnsByTableName(DBType, mt.Table_Name);
+
+            string colName = string.Empty;
+
+            #region 内容
+            sbTemp.Append("using DBModels;\r\n");
+            sbTemp.Append("using Models;\r\n");
+            sbTemp.Append("using System.Collections.Generic;\r\n");
+            sbTemp.Append("using System.Linq;\r\n");
+            sbTemp.Append("\r\n");
+            sbTemp.Append("namespace DAL\r\n");
+            sbTemp.Append("{\r\n");
+            sbTemp.Append("    public class " + mt.TabCamelName + "DAL : Base<" + mt.TabCamelName + ">\r\n");
+            sbTemp.Append("    {\r\n");
+            sbTemp.Append("        /// <summary>\r\n");
+            sbTemp.Append("        /// 获取分页列表(模糊搜索)\r\n");
+            sbTemp.Append("        /// </summary>\r\n");
+            sbTemp.Append("        /// <param name=\"PageIndex\">页码</param>\r\n");
+            sbTemp.Append("        /// <param name=\"PageSize\">页容量</param>\r\n");
+            sbTemp.Append("        /// <returns></returns>\r\n");
+            sbTemp.Append("        public PageModel<" + mt.TabCamelName + "> GetList(int PageIndex, int PageSize, string search)\r\n");
+            sbTemp.Append("        {\r\n");
+            sbTemp.Append("            using (dbContext db = new dbContext())\r\n");
+            sbTemp.Append("            {\r\n");
+            sbTemp.Append("                PageModel<" + mt.TabCamelName + "> model = new PageModel<" + mt.TabCamelName + ">();\r\n");
+            sbTemp.Append("                var linq = db." + mt.TabCamelName + "s;\r\n");
+            sbTemp.Append("                //if (CommHelper.CurrentUser != null && !CommHelper.CurrentUser.LoginName.ToLower().Contains(\"admin\"))\r\n");
+            sbTemp.Append("                //{\r\n");
+            sbTemp.Append("                //    linq = linq.Where(o => o.Creator == CommHelper.CurrentUser.ID);\r\n");
+            sbTemp.Append("                //}\r\n");
+            sbTemp.Append("                //if (!string.IsNullOrEmpty(search))\r\n");
+            sbTemp.Append("                //{\r\n");
+            sbTemp.Append("                //    linq = linq.Where(t => t.Keyword != null && t.Keyword.Contains(search));\r\n");
+            sbTemp.Append("                //}\r\n");
+            sbTemp.Append("                model.Total = linq.Count();\r\n");
+            sbTemp.Append("                model.Data = linq.Skip((PageIndex - 1) * PageSize).Take(PageSize).ToList();\r\n");
+            sbTemp.Append("                return model;\r\n");
+            sbTemp.Append("            }\r\n");
+            sbTemp.Append("\r\n");
+            sbTemp.Append("        }\r\n");
+            sbTemp.Append("\r\n");
+            sbTemp.Append("        /// <summary>\r\n");
+            sbTemp.Append("        /// 获取分页列表(模糊搜索) 查询状态 0未开始，1成功，2失败\r\n");
+            sbTemp.Append("        /// </summary>\r\n");
+            sbTemp.Append("        /// <param name=\"PageIndex\"></param>\r\n");
+            sbTemp.Append("        /// <param name=\"PageSize\"></param>\r\n");
+            sbTemp.Append("        /// <param name=\"search\">关键字</param>\r\n");
+            sbTemp.Append("        /// <param name=\"state\">状态（0未开始，1成功，2失败）</param>\r\n");
+            sbTemp.Append("        /// <returns></returns>\r\n");
+            sbTemp.Append("        public PageModel<" + mt.TabCamelName + "> GetList(int PageIndex, int PageSize, string search,int state)\r\n");
+            sbTemp.Append("        {\r\n");
+            sbTemp.Append("            using (dbContext db = new dbContext())\r\n");
+            sbTemp.Append("            {\r\n");
+            sbTemp.Append("                PageModel<" + mt.TabCamelName + "> model = new PageModel<" + mt.TabCamelName + ">();\r\n");
+            sbTemp.Append("                IQueryable<" + mt.TabCamelName + "> linq= null;\r\n");
+            sbTemp.Append("                if (state==0)\r\n");
+            sbTemp.Append("                {\r\n");
+            sbTemp.Append("                    //只查询未开始的\r\n");
+            sbTemp.Append("                     linq = db." + mt.TabCamelName + "s;\r\n");
+            sbTemp.Append("                }\r\n");
+            sbTemp.Append("                else\r\n");
+            sbTemp.Append("                {\r\n");
+            sbTemp.Append("                    linq = db." + mt.TabCamelName + "s;\r\n");
+            sbTemp.Append("                }\r\n");
+            sbTemp.Append("                //if (!string.IsNullOrEmpty(search))\r\n");
+            sbTemp.Append("                //{\r\n");
+            sbTemp.Append("                //    linq = linq.Where(t => t.Keyword != null && t.Keyword.Contains(search));\r\n");
+            sbTemp.Append("                //}\r\n");
+            sbTemp.Append("                model.Total = linq.Count();\r\n");
+            sbTemp.Append("                //model.Data = linq.OrderByDescending(t => t.ModifyTime).Skip((PageIndex - 1) * PageSize).Take(PageSize).ToList();\r\n");
+            sbTemp.Append("                model.Data = linq.Skip((PageIndex - 1) * PageSize).Take(PageSize).ToList();\r\n");
+            sbTemp.Append("                return model;\r\n");
+            sbTemp.Append("            }\r\n");
+            sbTemp.Append("\r\n");
+            sbTemp.Append("        }\r\n");
+            sbTemp.Append("\r\n");
+            sbTemp.Append("        /// <summary>\r\n");
+            sbTemp.Append("        /// 判断是否存在\r\n");
+            sbTemp.Append("        /// </summary>\r\n");
+            sbTemp.Append("        /// <param name=\"ClientID\">用户ID</param>\r\n");
+            sbTemp.Append("        /// <param name=\"Keyword\">产品参数</param>\r\n");
+            sbTemp.Append("        /// <param name=\"Name\">微博名称</param>\r\n");
+            sbTemp.Append("        /// <param name=\"Enterprise\">企业名</param>\r\n");
+            sbTemp.Append("        /// <returns></returns>\r\n");
+            sbTemp.Append("        public bool IsExist(string ClientID, string Keyword, string Name, string Enterprise)\r\n");
+            sbTemp.Append("        {\r\n");
+            sbTemp.Append("            bool result = false;\r\n");
+            sbTemp.Append("            using (dbContext db = new dbContext())\r\n");
+            sbTemp.Append("            {\r\n");
+            sbTemp.Append("                //var model = db." + mt.TabCamelName + "s.Where(t => t.DeleteTime == null && t.ClientID == ClientID && t.Keyword == Keyword && t.Name == Name && t.EnterpriseName == Enterprise).FirstOrDefault();\r\n");
+            sbTemp.Append("                var model = db." + mt.TabCamelName + "s.FirstOrDefault();\r\n");
+            sbTemp.Append("                if (model != null)\r\n");
+            sbTemp.Append("                {\r\n");
+            sbTemp.Append("                    result = true;\r\n");
+            sbTemp.Append("                }\r\n");
+            sbTemp.Append("                return result;\r\n");
+            sbTemp.Append("            }\r\n");
+            sbTemp.Append("        }\r\n");
+            sbTemp.Append("\r\n");
+            sbTemp.Append("        /// <summary>\r\n");
+            sbTemp.Append("        /// 获取全量分页列表(模糊搜索)\r\n");
+            sbTemp.Append("        /// </summary>\r\n");
+            sbTemp.Append("        /// <param name=\"PageIndex\"></param>\r\n");
+            sbTemp.Append("        /// <param name=\"PageSize\"></param>\r\n");
+            sbTemp.Append("        /// <returns></returns>\r\n");
+            sbTemp.Append("        public PageModel<" + mt.TabCamelName + "> GetFullList(int PageIndex, int PageSize, string search, int fullstate = 0)\r\n");
+            sbTemp.Append("        {\r\n");
+            sbTemp.Append("            using (dbContext db = new dbContext())\r\n");
+            sbTemp.Append("            {\r\n");
+            sbTemp.Append("                PageModel<" + mt.TabCamelName + "> model = new PageModel<" + mt.TabCamelName + ">();\r\n");
+            sbTemp.Append("                // t.IsFull = 2为开启全量抓取\r\n");
+            sbTemp.Append("                var linq = db." + mt.TabCamelName + "s;\r\n");
+            sbTemp.Append("                //if (!string.IsNullOrEmpty(search))\r\n");
+            sbTemp.Append("                //{\r\n");
+            sbTemp.Append("                //    linq = linq.Where(t => t.Keyword != null && t.Keyword.Contains(search));\r\n");
+            sbTemp.Append("                //}\r\n");
+            sbTemp.Append("                model.Total = linq.Count();\r\n");
+            sbTemp.Append("                //model.Data = linq.OrderByDescending(t => t.ModifyTime).Skip((PageIndex - 1) * PageSize).Take(PageSize).ToList();\r\n");
+            sbTemp.Append("                model.Data = linq.Skip((PageIndex - 1) * PageSize).Take(PageSize).ToList();\r\n");
+            sbTemp.Append("                return model;\r\n");
+            sbTemp.Append("            }\r\n");
+            sbTemp.Append("        }\r\n");
+            sbTemp.Append("\r\n");
+            sbTemp.Append("        /// <summary>\r\n");
+            sbTemp.Append("        /// 获取分页列表(模糊搜索)\r\n");
+            sbTemp.Append("        /// </summary>\r\n");
+            sbTemp.Append("        /// <param name=\"PageIndex\"></param>\r\n");
+            sbTemp.Append("        /// <param name=\"PageSize\"></param>\r\n");
+            sbTemp.Append("        /// <param name=\"ClientID\">用户ID</param>\r\n");
+            sbTemp.Append("        /// <returns></returns>\r\n");
+            sbTemp.Append("        public PageModel<" + mt.TabCamelName + "> GetList(int PageIndex, int PageSize, string ClientID, string search)\r\n");
+            sbTemp.Append("        {\r\n");
+            sbTemp.Append("            using (dbContext db = new dbContext())\r\n");
+            sbTemp.Append("            {\r\n");
+            sbTemp.Append("                PageModel<" + mt.TabCamelName + "> model = new PageModel<" + mt.TabCamelName + ">();\r\n");
+            sbTemp.Append("                var linq = db." + mt.TabCamelName + "s;\r\n");
+            sbTemp.Append("                //if (!string.IsNullOrEmpty(search))\r\n");
+            sbTemp.Append("                //{\r\n");
+            sbTemp.Append("                //    linq = linq.Where(t => t.Keyword != null && t.Keyword.Contains(search));\r\n");
+            sbTemp.Append("                //}\r\n");
+            sbTemp.Append("                model.Total = linq.Count();\r\n");
+            sbTemp.Append("                model.Data = linq.Skip((PageIndex - 1) * PageSize).Take(PageSize).ToList();\r\n");
+            sbTemp.Append("                return model;\r\n");
+            sbTemp.Append("            }\r\n");
+            sbTemp.Append("\r\n");
+            sbTemp.Append("        }\r\n");
+            sbTemp.Append("\r\n");
+            sbTemp.Append("\r\n");
+            sbTemp.Append("        public int GetTotalCount()\r\n");
+            sbTemp.Append("        {\r\n");
+            sbTemp.Append("            using (dbContext db = new dbContext())\r\n");
+            sbTemp.Append("            {\r\n");
+            sbTemp.Append("                return db." + mt.TabCamelName + "s.Count();\r\n");
+            sbTemp.Append("            }\r\n");
+            sbTemp.Append("        }\r\n");
+            sbTemp.Append("\r\n");
+            sbTemp.Append("        /// <summary>\r\n");
+            sbTemp.Append("        /// 分页获取list数据\r\n");
+            sbTemp.Append("        /// </summary>\r\n");
+            sbTemp.Append("        /// <param name=\"pageIndex\"></param>\r\n");
+            sbTemp.Append("        /// <param name=\"pageSize\"></param>\r\n");
+            sbTemp.Append("        /// <returns></returns>\r\n");
+            sbTemp.Append("        public List<" + mt.TabCamelName + "> GetListByPage(int pageIndex, int pageSize)\r\n");
+            sbTemp.Append("        {\r\n");
+            sbTemp.Append("            using (dbContext db = new dbContext())\r\n");
+            sbTemp.Append("            {\r\n");
+            sbTemp.Append("                //return db." + mt.TabCamelName + "s.OrderBy(o => o.ID).Skip((pageIndex - 1) * pageSize).Take(pageSize).ToList();\r\n");
+            sbTemp.Append("                return db." + mt.TabCamelName + "s.Skip((pageIndex - 1) * pageSize).Take(pageSize).ToList();\r\n");
+            sbTemp.Append("            }\r\n");
+            sbTemp.Append("        }\r\n");
+            sbTemp.Append("    }\r\n");
+            sbTemp.Append("}\r\n");
+                                                                        
+            #endregion
+
+            // 生成cs文件
+            generateFile("DAL", Words.ToSingular(mt.TabCamelName + "DAL"), sbTemp);
+        }
+
+
+        /// <summary>
+        /// 生成DAL
+        /// </summary>
+        /// <param name="dbTableName">数据库中的表名称</param>
+        /// <param name="tableCamelName">参与生成的表名称(可能是数据表名称也可能是表名称的骆驼表示法</param>
+        public void GenerateEs(Enumeration.DataBaseType DBType, ModelTable mt)
+        {
+            StringBuilder sbTemp = new StringBuilder();
+            DataTable dtColumns = SelectColumnsByTableName(DBType, mt.Table_Name);
+
+            string colName = string.Empty;
+
+            #region 内容
+
+            sbTemp.Append("using DBModels;\r\n");
+            sbTemp.Append("using System;\r\n");
+            sbTemp.Append("using System.Collections.Generic;\r\n");
+            sbTemp.Append("using System.Linq;\r\n");
+            sbTemp.Append("using System.Text;\r\n");
+            sbTemp.Append("using System.Threading.Tasks;\r\n");
+            sbTemp.Append("\r\n");
+            sbTemp.Append("namespace EsDal\r\n");
+            sbTemp.Append("{\r\n");
+            sbTemp.Append("    public class " + mt.TabCamelName + "ES : Base.EsBase\r\n");
+            sbTemp.Append("    {\r\n");
+            sbTemp.Append("        /// <summary>\r\n");
+            sbTemp.Append("        /// 根据关键字和数据更新时间删除数据\r\n");
+            sbTemp.Append("        /// </summary>\r\n");
+            sbTemp.Append("        /// <param name=\"keyword\">关键字</param>\r\n");
+            sbTemp.Append("        /// <returns></returns>\r\n");
+            sbTemp.Append("        public bool DeleteByKeyword(string keyword)\r\n");
+            sbTemp.Append("        {\r\n");
+            sbTemp.Append("            var queryString = \"iD: (\\\"\" + keyword + \"\\\")\";\r\n");
+sbTemp.Append("            var response = client.DeleteByQuery<" + mt.TabCamelName + ">(p => p.Query(q => q.QueryString(o => o.Query(queryString))));\r\n");
+            sbTemp.Append("            return response.Total > 0;\r\n");
+            sbTemp.Append("        }\r\n");
+            sbTemp.Append("\r\n");
+            sbTemp.Append("    }\r\n");
+            sbTemp.Append("}\r\n");
+
+            #endregion
+
+            // 生成cs文件
+            generateFile("ES", Words.ToSingular(mt.TabCamelName + "ES"), sbTemp);
+        }
+
 
         /// <summary>
         /// 生成文件
@@ -557,7 +871,13 @@ namespace DBCodeFirst
             return dtColumns;
         }
 
-        public static List<string> SelectGetPrimayKeys(Enumeration.DataBaseType DBType, string dbTableName)
+        /// <summary>
+        /// 选获取表的主键
+        /// </summary>
+        /// <param name="DBType"></param>
+        /// <param name="dbTableName"></param>
+        /// <returns></returns>
+        public static List<string> GetPrimayKeys(Enumeration.DataBaseType DBType, string dbTableName)
         {
             List<string> keyList = null;
             if (DBType == Enumeration.DataBaseType.Oracle)
@@ -588,7 +908,8 @@ namespace DBCodeFirst
 
             return keyList;
         }
-        public static List<string> SelectGetNotNullColumns(Enumeration.DataBaseType DBType, string dbTableName)
+
+        public static List<string> GetNotNullColumns(Enumeration.DataBaseType DBType, string dbTableName)
         {
             List<string> keyList = null;
             if (DBType == Enumeration.DataBaseType.Oracle)
@@ -603,14 +924,21 @@ namespace DBCodeFirst
             {
                 keyList = new MSSQLInfo().GetNotNullColumns(dbTableName);
             }
-            else {
+            else
+            {
 
             }
 
             return keyList;
         }
 
-        public static string SelectTableComments(Enumeration.DataBaseType DBType, string dbTableName)
+        /// <summary>
+        /// 获取表的注释
+        /// </summary>
+        /// <param name="DBType"></param>
+        /// <param name="dbTableName"></param>
+        /// <returns></returns>
+        public static string GetTableComments(Enumeration.DataBaseType DBType, string dbTableName)
         {
             string comment = null;
             if (DBType == Enumeration.DataBaseType.Oracle)
@@ -629,7 +957,8 @@ namespace DBCodeFirst
             {
                 comment = new PgInfo().TableComments(dbTableName);
             }
-            else {
+            else
+            {
 
             }
 

@@ -63,7 +63,7 @@ namespace DBCodeFirst
             {
                 ret = "string";
             }
-            else if (type == "FLOAT" || type == "DOUBLE")
+            else if (type == "FLOAT" || type == "DOUBLE" || type == "DOUBLE PRECISION")
             {
                 ret = tempNullAble == "N" ? "double" : "double?";
             }

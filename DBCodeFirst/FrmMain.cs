@@ -50,7 +50,7 @@ namespace DBCodeFirst
 
             if (listTables.Count == 0)
             {
-                MessageBox.Show("还未勾选任何表名");
+                MessageBox.Show("没勾选任何表名");
                 return;
             }
 
@@ -77,12 +77,14 @@ namespace DBCodeFirst
             {
             }
 
-            gen.GenerateContext(listTables, dbName);
-            //gen.GenerateModelEntities(listTables);
+            gen.GenerateDbContext(listTables, dbName);
+            gen.GenerateModelEntities(listTables);
             foreach (ModelTable item in listTables)
             {
-                gen.GenerateModel((Enumeration.DataBaseType)cbxDataBase.SelectedIndex, item.Table_Name, item.TabCamelName);
-                gen.GenerateMapping((Enumeration.DataBaseType)cbxDataBase.SelectedIndex, item.Table_Name);
+                gen.GenerateModel((Enumeration.DataBaseType)cbxDataBase.SelectedIndex, item);
+                gen.GenerateMapping((Enumeration.DataBaseType)cbxDataBase.SelectedIndex, item);
+                gen.GenerateDal((Enumeration.DataBaseType)cbxDataBase.SelectedIndex, item);
+                gen.GenerateEs((Enumeration.DataBaseType)cbxDataBase.SelectedIndex, item);
             }
 
             //MessageBox.Show("生成文件成功!");

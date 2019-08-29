@@ -58,7 +58,7 @@ namespace DBCodeFirst
         /// <param name="dbTableName">数据库中的表名称</param>
         /// <param name="tableCamelName">参与生成的表名称(可能是数据表名称也可能是表名称的骆驼表示法</param>
         public void GenerateModel(Enumeration.DataBaseType DBType, ModelTable mt)
-        {            
+        {
             StringBuilder sbTemp = new StringBuilder();
             DataTable dtColumns = SelectColumnsByTableName(DBType, mt.Table_Name);
 
@@ -66,7 +66,7 @@ namespace DBCodeFirst
 
             #region 生成命名空间和类
             sbTemp.Append("using System;"); //引入命名空间
-            sbTemp.Append("\r\n");
+            sbTemp.Append("\r\nusing Nest;");
             sbTemp.Append("\r\nusing System.ComponentModel;");
             sbTemp.Append("\r\nusing System.Collections.Generic;");
             sbTemp.Append("\r\nusing System.ComponentModel.DataAnnotations;");
@@ -80,7 +80,8 @@ namespace DBCodeFirst
                 .Replace("\n", " "));
             sbTemp.Append("\r\n").Append("\t/// </summary>");
             sbTemp.Append("\r\n").Append("\t[Serializable]");
-            sbTemp.Append("\r\n").Append("\t[Table(\"" + mt.Table_Name +"\")]\r\n");
+            sbTemp.Append("\r\n").Append("\t[Table(\"" + mt.Table_Name + "\")]");
+            sbTemp.Append("\r\n").Append("\t[ElasticsearchType(Name = \"" + mt.Table_Name + "\")]");
             sbTemp.Append("\r\n").Append("\tpublic partial class ")
                 .Append(Words.ToSingular(Words.reWriteWord(mt.TabCamelName)));
             sbTemp.Append("\r\n").Append("\t{");    //类
@@ -111,6 +112,9 @@ namespace DBCodeFirst
                 sbTemp.Append("\r\n\t\t/// <summary>");
                 sbTemp.Append("\r\n\t\t///").Append(tempDescription);
                 sbTemp.Append("\r\n\t\t/// </summary>");
+                //[Nest.String(Index = FieldIndexOption.NotAnalyzed)]
+                //[Nest.String(Analyzer = "standard")]
+
                 sbTemp.Append("\r\n\t\t[Display(Name = \"").Append(PublicHelper.GetCamelName(colName)).Append("\")]");
                 if (tempNullAble == "N" || tempNullAble == "NO")
                 {
@@ -128,7 +132,7 @@ namespace DBCodeFirst
                         else
                         {
                             MessageBox.Show("提示！", "未知类型：" + tempType, MessageBoxButtons.OK,
-         MessageBoxIcon.Warning, MessageBoxDefaultButton.Button1);                            
+         MessageBoxIcon.Warning, MessageBoxDefaultButton.Button1);
                         }
                     }
                     else
@@ -141,14 +145,15 @@ namespace DBCodeFirst
                 //是否主键
                 if (mt.PrimayKey.Equals(colName))
                 {
-                    sbTemp.Append("\r\n\t\t[Key] ");
+                    sbTemp.Append("\r\n\t\t[Key]");
+                    sbTemp.Append("\r\n\t\t[Keyword]");
                 }
 
                 sbTemp.Append("\r\n\t\tpublic ")
-                    .Append(ColType)
-                    .Append(" ")
-                    .Append(Words.reWriteWord(colName))
-                    .Append(" { get; set; }");
+                                .Append(ColType)
+                                .Append(" ")
+                                .Append(Words.reWriteWord(colName))
+                                .Append(" { get; set; }");
 
             }
             sbTemp.Append("\r\n\t}");
@@ -328,7 +333,7 @@ namespace DBCodeFirst
             //sbTemp.Append("using System.Data.Entity.Core.Objects;\r\n");
             //sbTemp.Append("using System.Data.Entity.Infrastructure;\r\n");
             //sbTemp.Append("using System.Data.Entity.Infrastructure.Interception;\r\n");
-            
+
             //sbTemp.Append("using " + NameSpaceModel + ".Mapping;\r\n");
             sbTemp.Append("\r\n");
             sbTemp.Append("namespace ").Append(NameSpaceModel).Append("\r\n");
@@ -441,7 +446,7 @@ namespace DBCodeFirst
 
 
 
-        sbTemp.Append("\t}\r\n");
+            sbTemp.Append("\t}\r\n");
             sbTemp.Append("}\r\n");
 
             //generateFile("Models", DBName + "Context", sbTemp);
@@ -739,7 +744,7 @@ namespace DBCodeFirst
             sbTemp.Append("        }\r\n");
             sbTemp.Append("    }\r\n");
             sbTemp.Append("}\r\n");
-                                                                        
+
             #endregion
 
             // 生成cs文件
@@ -780,7 +785,7 @@ namespace DBCodeFirst
             sbTemp.Append("        public bool DeleteByKeyword(string keyword)\r\n");
             sbTemp.Append("        {\r\n");
             sbTemp.Append("            var queryString = \"iD: (\\\"\" + keyword + \"\\\")\";\r\n");
-sbTemp.Append("            var response = client.DeleteByQuery<" + mt.TabCamelName + ">(p => p.Query(q => q.QueryString(o => o.Query(queryString))));\r\n");
+            sbTemp.Append("            var response = client.DeleteByQuery<" + mt.TabCamelName + ">(p => p.Query(q => q.QueryString(o => o.Query(queryString))));\r\n");
             sbTemp.Append("            return response.Total > 0;\r\n");
             sbTemp.Append("        }\r\n");
             sbTemp.Append("\r\n");
